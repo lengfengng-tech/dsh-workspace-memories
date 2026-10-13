@@ -8,7 +8,7 @@
  * React comes from the browser module table; styling uses only theme tokens.
  */
 window.__ModuleLoader__.load({
-  id: 'dsh-workspace-memory',
+  id: 'dsh-workspace-memories',
   factory(require) {
     const React = require('react')
     const h = React.createElement

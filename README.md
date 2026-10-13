@@ -1,9 +1,9 @@
-# dsh-workspace-memory
+# dsh-workspace-memories
 
 English | [中文](README.zh.md)
 
 [![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
-[![](https://img.shields.io/npm/v/dsh-workspace-memory?style=flat-square)](https://www.npmjs.com/package/dsh-workspace-memory)
+[![](https://img.shields.io/npm/v/dsh-workspace-memories?style=flat-square)](https://www.npmjs.com/package/dsh-workspace-memories)
 [![](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 **Per-workspace persistent memory for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH)** — a plugin that gives every workspace its own durable memory files, injects them into every session running in that workspace, and lets both you and the agent manage them.
@@ -35,18 +35,18 @@ The package is plain JavaScript with no build step, so every install channel wor
 
 ```sh
 # from npm (once published)
-dsh plugin --profile desktop add dsh-workspace-memory
+dsh plugin --profile desktop add dsh-workspace-memories
 
 # straight from GitHub (no build script needed — sources ship as-is)
-dsh plugin --profile desktop add github:lengfengng1-ai-architect/dsh-workspace-memory
+dsh plugin --profile desktop add github:lengfengng1-ai-architect/dsh-workspace-memories
 
 # from a local checkout
-dsh plugin --profile desktop add ./dsh-workspace-memory
+dsh plugin --profile desktop add ./dsh-workspace-memories
 ```
 
 Or use the GUI: sidebar **Plugins → Add plugin**, paste a package name, GitHub address, or absolute local path, then **Enable now**.
 
-Uninstall: the Plugins page, or `dsh plugin --profile desktop remove dsh-workspace-memory`.
+Uninstall: the Plugins page, or `dsh plugin --profile desktop remove dsh-workspace-memories`.
 
 ## Usage
 
@@ -74,7 +74,7 @@ Two storage modes, chosen by the plugin's `storage` config:
 
 ```
 ~/.dsh/workspace-memory/     # default memory store, one subdirectory per workspace
-dsh-workspace-memory/        # this plugin
+dsh-workspace-memories/        # this plugin
 ├── package.json             #   bundle manifest (dsh.bundle.patch + dsh.client)
 ├── cordis.patch.yml         #   plugin row declaration
 ├── index.js                 #   host: /api routes + prompt injection + the save tool

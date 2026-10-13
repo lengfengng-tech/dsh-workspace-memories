@@ -1,5 +1,5 @@
 {
-  "name": "dsh-workspace-memory",
+  "name": "dsh-workspace-memories",
   "version": "1.1.0",
   "description": "Per-workspace persistent memory for DeepSeek Harness: a sidebar panel to manage Markdown memory files, automatic injection into every session of the workspace, and an agent tool to save new memories",
   "type": "module",
@@ -32,10 +32,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lengfengng1-ai-architect/dsh-workspace-memory.git"
+    "url": "git+https://github.com/lengfengng1-ai-architect/dsh-workspace-memories.git"
   },
-  "homepage": "https://github.com/lengfengng1-ai-architect/dsh-workspace-memory#readme",
-  "bugs": "https://github.com/lengfengng1-ai-architect/dsh-workspace-memory/issues",
+  "homepage": "https://github.com/lengfengng1-ai-architect/dsh-workspace-memories#readme",
+  "bugs": "https://github.com/lengfengng1-ai-architect/dsh-workspace-memories/issues",
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },
     "client": {

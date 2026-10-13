@@ -1,9 +1,9 @@
-# dsh-workspace-memory（工作区记忆）
+# dsh-workspace-memories（工作区记忆）
 
 [English](README.md) | 中文
 
 [![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
-[![](https://img.shields.io/npm/v/dsh-workspace-memory?style=flat-square)](https://www.npmjs.com/package/dsh-workspace-memory)
+[![](https://img.shields.io/npm/v/dsh-workspace-memories?style=flat-square)](https://www.npmjs.com/package/dsh-workspace-memories)
 [![](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）增加**工作区级持久记忆**：每个工作区拥有独立的记忆文件，默认存放在项目之外的 DSH 数据目录，自动注入该工作区每个会话的上下文，并可由 Agent 主动写入。
@@ -35,18 +35,18 @@ DSH 的 Agent 跨会话是无状态的：一个会话"学到"的东西——项�
 
 ```sh
 # 从 npm 安装（发布后）
-dsh plugin --profile desktop add dsh-workspace-memory
+dsh plugin --profile desktop add dsh-workspace-memories
 
 # 直接从 GitHub 安装（无需构建脚本，源码即产物）
-dsh plugin --profile desktop add github:lengfengng1-ai-architect/dsh-workspace-memory
+dsh plugin --profile desktop add github:lengfengng1-ai-architect/dsh-workspace-memories
 
 # 从本地目录安装
-dsh plugin --profile desktop add ./dsh-workspace-memory
+dsh plugin --profile desktop add ./dsh-workspace-memories
 ```
 
 或用 GUI：侧栏「插件 → 添加插件」，粘贴包名、GitHub 地址或本地绝对路径，装完点「立即启用」。
 
-卸载：插件页操作，或 `dsh plugin --profile desktop remove dsh-workspace-memory`。
+卸载：插件页操作，或 `dsh plugin --profile desktop remove dsh-workspace-memories`。
 
 ## 使用
 
@@ -74,7 +74,7 @@ dsh plugin --profile desktop add ./dsh-workspace-memory
 
 ```
 ~/.dsh/workspace-memory/    # 默认记忆库，每个工作区一个子目录
-dsh-workspace-memory/       # 本插件
+dsh-workspace-memories/       # 本插件
 ├── package.json          #   bundle 清单（dsh.bundle.patch + dsh.client）
 ├── cordis.patch.yml      #   插件行声明
 ├── index.js              #   宿主：/api 路由 + 记忆注入 + 写记忆工具
