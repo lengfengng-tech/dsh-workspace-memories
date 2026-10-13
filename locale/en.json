@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Workspace Memory",
+    "description": "Adds a sidebar panel that lists and manages the memory files attached to each workspace, stored under .dsh/memory as a supplement to files like AGENTS.md."
+  }
+}
