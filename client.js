@@ -294,16 +294,6 @@ window.__ModuleLoader__.load({
         }
       }, [])
 
-      useEffect(() => {
-        setSelected(null)
-        setContent('')
-        setSavedContent('')
-        setNotice(null)
-        setCreating(false)
-        setConfirmingDelete(false)
-        void refresh(workspaceId)
-      }, [workspaceId, refresh])
-
       const openFile = useCallback(async (name) => {
         if (!workspaceId) return
         setBusy(true)
@@ -320,6 +310,20 @@ window.__ModuleLoader__.load({
           setBusy(false)
         }
       }, [workspaceId])
+
+      useEffect(() => {
+        setSelected(null)
+        setContent('')
+        setSavedContent('')
+        setNotice(null)
+        setCreating(false)
+        setConfirmingDelete(false)
+        void (async () => {
+          const files = await refresh(workspaceId)
+          // Entering the panel selects the first memory by default.
+          if (files.length > 0) void openFile(files[0].name)
+        })()
+      }, [workspaceId, refresh, openFile])
 
       const saveFile = useCallback(async () => {
         if (!workspaceId || !selected) return
@@ -376,13 +380,15 @@ window.__ModuleLoader__.load({
           setSavedContent('')
           setConfirmingDelete(false)
           setNotice({ kind: 'ok', text: t('notice.deleted') })
-          await refresh(workspaceId, { quiet: true })
+          const files = await refresh(workspaceId, { quiet: true })
+          // Keep the editor occupied: select the first remaining memory.
+          if (files.length > 0) void openFile(files[0].name)
         } catch (error) {
           setNotice({ kind: 'error', text: error.message })
         } finally {
           setBusy(false)
         }
-      }, [workspaceId, selected, confirmingDelete, refresh, t])
+      }, [workspaceId, selected, confirmingDelete, refresh, openFile, t])
 
       const dirty = selected !== null && content !== savedContent
       const selectedMissing = selected !== null
