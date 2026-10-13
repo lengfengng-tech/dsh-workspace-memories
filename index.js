@@ -1,9 +1,15 @@
 /**
  * Host half of the Workspace Memory bundle.
  *
- * Every workspace registered in the Harness workspace registry owns one
- * memory directory (`<workspace>/.dsh/memory` by default) holding Markdown
- * memory files that supplement project files such as AGENTS.md.
+ * Every workspace owns one memory directory of Markdown files that supplement
+ * project files such as AGENTS.md. Two storage modes:
+ *
+ * - `home` (default): `<DSH home>/workspace-memory/<workspace-key>/` — OUTSIDE
+ *   the project tree, so machine-local or sensitive notes (server configs,
+ *   environment quirks, personal conventions) can never be committed to the
+ *   project repository by accident.
+ * - `workspace`: `<workspace>/.dsh/memory/` — inside the project, for memories
+ *   the team may want to version alongside the code.
  *
  * Three contributions make the memory real:
  *
@@ -20,20 +26,22 @@
  *    file itself when the user asks it to remember something.
  *
  * Route responses use one envelope: `{ ok: true, value }` or
- * `{ ok: false, error: { code, message } }`. File access is fenced to the
- * memory directory inside the named workspace; the browser cannot reach
- * arbitrary host paths.
+ * `{ ok: false, error: { code, message } }`. The panel addresses memory only
+ * by registered workspace id, never by free-form path.
  */
 
 import fs from 'node:fs/promises'
 import fsSync from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
+import crypto from 'node:crypto'
 
 export const name = 'workspace-memory'
 export const inject = ['connection', 'workspaceRegistry', 'systemPrompt', 'tools', 'sessions']
 
 const ROUTE_PREFIX = '/api/workspace-memory'
 const DEFAULT_DIRECTORY = '.dsh/memory'
+const DEFAULT_STORAGE = 'home'
 const MAX_NAME_LENGTH = 100
 const MAX_CONTENT_BYTES = 1024 * 1024
 const PROMPT_MAX_FILES = 20
@@ -59,16 +67,50 @@ function fail(status, code, message) {
 }
 
 export function apply(ctx, config = {}) {
+  const storage = config.storage === undefined ? DEFAULT_STORAGE : config.storage
+  if (storage !== 'home' && storage !== 'workspace') {
+    throw new Error(`workspace-memory: config.storage must be "home" or "workspace", got ${JSON.stringify(config.storage)}`)
+  }
   const directory = typeof config.directory === 'string' && config.directory.trim() !== ''
     ? config.directory.trim()
     : DEFAULT_DIRECTORY
   if (path.isAbsolute(directory) || directory.split(/[/\\]/).includes('..')) {
     throw new Error(`workspace-memory: config.directory must stay inside the workspace, got ${JSON.stringify(config.directory)}`)
   }
+  const storageDir = typeof config.storageDir === 'string' && config.storageDir.trim() !== ''
+    ? path.resolve(config.storageDir.trim())
+    : path.join(os.homedir(), '.dsh', 'workspace-memory')
 
   // ---------------------------------------------------------------------------
   // Shared memory-file helpers
   // ---------------------------------------------------------------------------
+
+  /**
+   * Stable, collision-safe directory key for one workspace path.
+   * @param {string} workspacePath - absolute workspace root.
+   * @returns {string} `<basename>-<8 hex chars of sha256>`.
+   */
+  function workspaceKey(workspacePath) {
+    const base = path.basename(workspacePath).replace(/[^A-Za-z0-9._-]/g, '_') || 'workspace'
+    const hash = crypto.createHash('sha256').update(workspacePath).digest('hex').slice(0, 8)
+    return `${base}-${hash}`
+  }
+
+  /**
+   * Resolve the memory directory for one workspace root.
+   * @param {string} workspacePath - absolute workspace root.
+   * @returns {{ dir: string, display: string } | { error: Response }}
+   */
+  function memoryDirFor(workspacePath) {
+    if (storage === 'workspace') {
+      const dir = path.resolve(workspacePath, directory)
+      if (dir !== workspacePath && !dir.startsWith(workspacePath + path.sep)) {
+        return { error: fail(400, 'workspace-memory/invalid-directory', 'The memory directory escapes the workspace.') }
+      }
+      return { dir, display: directory }
+    }
+    return { dir: path.join(storageDir, workspaceKey(workspacePath)), display: `${storageDir}/${workspaceKey(workspacePath)}` }
+  }
 
   /**
    * Validate one client-supplied memory file name.
@@ -128,7 +170,7 @@ export function apply(ctx, config = {}) {
    * Resolve the memory root for one session working directory: the registered
    * Workspace covering it, or the directory itself when unregistered.
    * @param {string} cwd - the session header's absolute working directory.
-   * @returns {Promise<string>} absolute memory-root path.
+   * @returns {Promise<string>} absolute workspace-root path.
    */
   async function resolveRoot(cwd) {
     try {
@@ -153,19 +195,19 @@ export function apply(ctx, config = {}) {
   // Prompt section: current memory files, refreshed when the directory changes
   // ---------------------------------------------------------------------------
 
-  /** Per-root cache: directory signature -> rendered section text. */
+  /** Per-directory cache: directory signature -> rendered section text. */
   const memoryCaches = new Map()
 
   /**
-   * Render the workspace memory section for one root, re-reading file contents
-   * only when the directory signature (names, sizes, mtimes) changed. Runs
-   * synchronously because prompt-section providers are synchronous; the stat
-   * round-trip over a handful of small files is negligible per model step.
-   * @param {string} root - absolute memory-root path.
+   * Render the workspace memory section for one memory directory, re-reading
+   * file contents only when the directory signature (names, sizes, mtimes)
+   * changed. Runs synchronously because prompt-section providers are
+   * synchronous; the stat round-trip over a handful of small files is
+   * negligible per model step.
+   * @param {string} dir - absolute memory directory.
    * @returns {string} section text, empty when no memory exists.
    */
-  function buildMemoryText(root) {
-    const dir = path.join(root, directory)
+  function buildMemoryText(dir) {
     let signature = 'missing'
     const files = []
     try {
@@ -177,7 +219,7 @@ export function apply(ctx, config = {}) {
       files.sort((left, right) => left.name.localeCompare(right.name))
       signature = files.map((file) => `${file.name}:${String(file.size)}:${String(file.mtimeMs)}`).join('|')
     } catch { /* missing or unreadable directory reads as no memory */ }
-    const cached = memoryCaches.get(root)
+    const cached = memoryCaches.get(dir)
     if (cached !== undefined && cached.signature === signature) return cached.text
 
     let text = ''
@@ -185,7 +227,9 @@ export function apply(ctx, config = {}) {
       const parts = [
         '## Workspace Memory',
         '',
-        `This workspace keeps durable memory files under \`${directory}/\`, managed from the "Workspace Memory" sidebar panel. Treat them as trusted project memory alongside AGENTS.md. When the user asks you to remember a project decision, convention, or preference, persist it with the save_workspace_memory tool.`,
+        'This workspace has durable memory files, one Markdown file per topic, managed from the "Workspace Memory" sidebar panel. '
+          + 'By default they live in the DSH data directory OUTSIDE the project tree, so machine-local details (server configurations, environment quirks, personal conventions) never land in the repository. '
+          + 'Treat them as trusted project memory alongside AGENTS.md. When the user asks you to remember a project decision, convention, server detail, or preference, persist it with the save_workspace_memory tool.',
         '',
       ]
       for (const file of files.slice(0, PROMPT_MAX_FILES)) {
@@ -198,14 +242,14 @@ export function apply(ctx, config = {}) {
         if (content.length > PROMPT_MAX_FILE_CHARS) {
           content = `${content.slice(0, PROMPT_MAX_FILE_CHARS)}\n\n[truncated — the full file is ${String(content.length)} characters]`
         }
-        parts.push(`### \`${directory}/${file.name}\``, '', content, '')
+        parts.push(`### \`${file.name}\``, '', content, '')
       }
       if (files.length > PROMPT_MAX_FILES) {
         parts.push(`[${String(files.length - PROMPT_MAX_FILES)} more memory files not shown]`, '')
       }
       text = parts.join('\n').trim()
     }
-    memoryCaches.set(root, { signature, text })
+    memoryCaches.set(dir, { signature, text })
     return text
   }
 
@@ -216,7 +260,7 @@ export function apply(ctx, config = {}) {
   /**
    * Resolve the fenced memory directory for one registered workspace.
    * @param {string | null} workspaceId - registry workspace id from the client.
-   * @returns {{ dir: string, workspacePath: string } | { error: Response }}
+   * @returns {{ dir: string, display: string } | { error: Response }}
    */
   function resolveMemoryDir(workspaceId) {
     if (typeof workspaceId !== 'string' || workspaceId === '') {
@@ -226,19 +270,14 @@ export function apply(ctx, config = {}) {
     if (workspace === undefined) {
       return { error: fail(404, 'workspace-memory/unknown-workspace', `Unknown workspace: ${workspaceId}`) }
     }
-    const workspacePath = path.resolve(workspace.path)
-    const dir = path.resolve(workspacePath, directory)
-    if (dir !== workspacePath && !dir.startsWith(workspacePath + path.sep)) {
-      return { error: fail(400, 'workspace-memory/invalid-directory', 'The memory directory escapes the workspace.') }
-    }
-    return { dir, workspacePath }
+    return memoryDirFor(path.resolve(workspace.path))
   }
 
   async function handleList(request) {
     const workspaceId = new URL(request.url).searchParams.get('workspaceId')
     const resolved = resolveMemoryDir(workspaceId)
     if (resolved.error) return resolved.error
-    return ok({ directory, files: await listFiles(resolved.dir) })
+    return ok({ directory: resolved.display, storage, files: await listFiles(resolved.dir) })
   }
 
   async function handleRead(request) {
@@ -352,10 +391,13 @@ export function apply(ctx, config = {}) {
       if (typeof cwd !== 'string' || cwd === '') return
       void resolveRoot(cwd).then((root) => {
         try {
+          const memory = memoryDirFor(root)
+          if (memory.error) return
+          const dir = memory.dir
           const dispose = agent.ctx.systemPrompt.section({
             name: 'workspace-memory',
             order: PROMPT_SECTION_ORDER,
-            text: () => buildMemoryText(root),
+            text: () => buildMemoryText(dir),
           })
           agentRegistrations.add(dispose)
         } catch { /* the agent may already be disposed; its context rejects registration */ }
@@ -370,8 +412,9 @@ export function apply(ctx, config = {}) {
   ctx.effect(() => ctx.tools.register({
     name: 'save_workspace_memory',
     description:
-      'Save durable memory for this workspace as a Markdown file under .dsh/memory/. '
-      + 'Use it when the user asks you to remember a project decision, convention, preference, or fact across sessions. '
+      'Save durable memory for this workspace as a Markdown file. '
+      + 'Memories are stored outside the project directory by default (in the DSH data directory), so machine-local details such as server configurations never enter the repository. '
+      + 'Use it when the user asks you to remember a project decision, convention, server detail, preference, or fact across sessions. '
       + 'Memory files are injected into every session working in this workspace and can be reviewed in the Workspace Memory sidebar panel.',
     parameters: {
       type: 'object',
@@ -408,10 +451,11 @@ export function apply(ctx, config = {}) {
         throw new Error(`Memory content exceeds ${MAX_CONTENT_BYTES} bytes.`)
       }
       const root = await resolveRoot(cwd)
-      const dir = path.join(root, directory)
-      await fs.mkdir(dir, { recursive: true })
-      await fs.writeFile(path.join(dir, name), args.content, 'utf8')
-      return `Saved workspace memory to ${directory}/${name}; every session in this workspace now sees it.`
+      const memory = memoryDirFor(root)
+      if (memory.error) throw new Error('The configured memory directory escapes the workspace.')
+      await fs.mkdir(memory.dir, { recursive: true })
+      await fs.writeFile(path.join(memory.dir, name), args.content, 'utf8')
+      return `Saved workspace memory "${name}"; every session in this workspace now sees it.`
     },
   }), 'workspace-memory: save tool')
 }

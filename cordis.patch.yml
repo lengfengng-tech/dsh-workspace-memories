@@ -1,3 +1,8 @@
 - insert:
     - id: workspace-memory
       name: 'dsh-workspace-memory'
+      config:
+        # home: store under the DSH data directory (outside the project tree).
+        # workspace: store under <workspace>/.dsh/memory (inside the project).
+        storage: home
+        storageDir: !!js dshHomePath('workspace-memory')

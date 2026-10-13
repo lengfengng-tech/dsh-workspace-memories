@@ -10,13 +10,13 @@ English | [中文](README.zh.md)
 
 ## Why this plugin exists
 
-DSH agents are stateless across sessions: everything a session "learns" — your project's decisions, conventions, hard-won debugging facts — lives only in that conversation's context and is gone when it ends. The built-in mechanism for durable knowledge is `AGENTS.md`, but it is a static, project-owned instruction file: the agent cannot update it on its own, and there is no place for the growing, day-to-day memory of *working in* a workspace.
+DSH agents are stateless across sessions: everything a session "learns" — your project's decisions, conventions, hard-won debugging facts — lives only in that conversation's context and is gone when it ends. The built-in mechanism for durable knowledge is `AGENTS.md`, but it is a static, project-owned instruction file: the agent cannot update it on its own, and **some things should not live in the project folder at all** — server addresses and topologies, local environment quirks, machine-specific paths, personal working conventions. Anything under the project tree risks being committed to git by accident.
 
-This plugin closes that gap with a small, explicit memory loop:
+This plugin closes that gap with a small, explicit memory loop whose default storage is **outside the project directory**:
 
-1. **Every workspace gets a memory directory** — `<workspace>/.dsh/memory/*.md`, plain Markdown you can read, diff, and commit.
+1. **Every workspace gets a memory directory** — by default under the DSH data directory (`~/.dsh/workspace-memory/<workspace>/`), never inside the repo. Plain Markdown you can read, diff, and back up. (An opt-in `workspace` storage mode keeps memories in `<workspace>/.dsh/memory/` for teams who *want* them versioned alongside the code.)
 2. **Memories are injected automatically** — each session created in a workspace carries that workspace's memory files in its system prompt, alongside `AGENTS.md`, so a fresh session starts already "remembering".
-3. **The agent can write memories itself** — a global `save_workspace_memory` tool lets any session persist a decision, convention, or preference the moment you say "remember this".
+3. **The agent can write memories itself** — a global `save_workspace_memory` tool lets any session persist a decision, server detail, convention, or preference the moment you say "remember this".
 4. **You stay in control** — a sidebar panel lists, creates, edits, and deletes memory files per workspace, so memory stays inspectable and correctable instead of hidden in a database.
 
 ## Features
@@ -25,7 +25,7 @@ This plugin closes that gap with a small, explicit memory loop:
 |---|---|
 | Browse / create / edit / delete memory files | **Workspace Memory** sidebar panel (switch workspaces via the selector) |
 | Ask the agent to remember something | Any session: "remember: …" → the agent calls `save_workspace_memory` |
-| Automatic recall | Every session in the workspace gets `.dsh/memory/*.md` injected into its system prompt |
+| Automatic recall | Every session in the workspace gets its memory files injected into its system prompt |
 
 Works in every built-in agent preset (Standard, PTC, Minimal, Creator): the tool is registered in the root composition, and global tools are visible to all presets unless a custom preset opts out with a `tools.restrict` allow list — add `save_workspace_memory` to that list if so.
 
@@ -52,7 +52,7 @@ Uninstall: the Plugins page, or `dsh plugin --profile desktop remove dsh-workspa
 
 - Open the **Workspace Memory** entry in the sidebar. The selector defaults to the workspace of the current session. **New file** creates a `.md` memory (the extension is added when missing); select a file to edit, save, or delete it.
 - Tell the agent "remember: this project uses pnpm, not npm" — it writes a memory file that every session of the workspace (and the panel) sees immediately.
-- The memory directory is configurable through the plugin's `directory` config field (default `.dsh/memory`, must stay inside the workspace).
+- Storage and layout are configurable: `storage: home` (default, DSH data directory, outside the project) or `storage: workspace` (inside the project at `directory`, default `.dsh/memory`).
 
 ## Important: start a new session after installing or upgrading
 
@@ -65,8 +65,15 @@ Memory injection into the system prompt is attached when an agent is created (se
 
 ## Data layout and safety
 
+Two storage modes, chosen by the plugin's `storage` config:
+
+| Mode | Memory location | Use it for |
+|---|---|---|
+| `home` (default) | `~/.dsh/workspace-memory/<workspace-key>/` — outside the project | Machine-local or sensitive notes: server configs, environment quirks, personal conventions |
+| `workspace` | `<workspace>/.dsh/memory/` — inside the project | Team-shared memories meant to be committed alongside the code |
+
 ```
-<workspace>/.dsh/memory/     # memory files: plain Markdown, one file per topic
+~/.dsh/workspace-memory/     # default memory store, one subdirectory per workspace
 dsh-workspace-memory/        # this plugin
 ├── package.json             #   bundle manifest (dsh.bundle.patch + dsh.client)
 ├── cordis.patch.yml         #   plugin row declaration

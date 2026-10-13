@@ -19,7 +19,7 @@ window.__ModuleLoader__.load({
 
     const en = {
       'panel.title': 'Workspace Memory',
-      'panel.subtitle': 'Per-workspace memory files under .dsh/memory — a supplement to project files such as AGENTS.md, injected into every session working in this workspace.',
+      'panel.subtitle': 'Per-workspace memory files, stored in the DSH data directory by default — outside the project folder, so server configs and other machine-local notes never get committed. Injected into every session of the workspace.',
       'workspace.label': 'Workspace',
       'workspace.none': 'No workspace is registered yet.',
       'action.refresh': 'Refresh',
@@ -48,7 +48,7 @@ window.__ModuleLoader__.load({
 
     const zh = {
       'panel.title': '工作区记忆',
-      'panel.subtitle': '每个工作区独立的记忆文件，保存在 .dsh/memory 目录，作为 AGENTS.md 等项目文件的额外补充，并自动注入该工作区每个会话的上下文。',
+      'panel.subtitle': '每个工作区独立的记忆文件，默认保存在 DSH 数据目录、不进入项目文件夹——服务器配置等本机敏感信息不会被误提交。自动注入该工作区每个会话的上下文。',
       'workspace.label': '工作区',
       'workspace.none': '尚未注册任何工作区。',
       'action.refresh': '刷新',
