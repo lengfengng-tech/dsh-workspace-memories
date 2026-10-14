@@ -1,6 +1,6 @@
 {
   "name": "dsh-workspace-memories",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Per-workspace persistent memory for DeepSeek Harness: a sidebar panel to manage Markdown memory files, automatic injection into every session of the workspace, and an agent tool to save new memories",
   "type": "module",
   "license": "MIT",
