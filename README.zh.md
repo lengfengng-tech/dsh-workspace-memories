@@ -38,7 +38,7 @@ DSH 的 Agent 跨会话是无状态的：一个会话"学到"的东西——项�
 dsh plugin --profile desktop add dsh-workspace-memories
 
 # 直接从 GitHub 安装（无需构建脚本，源码即产物）
-dsh plugin --profile desktop add github:lengfengng1-ai-architect/dsh-workspace-memories
+dsh plugin --profile desktop add github:lengfengng-tech/dsh-workspace-memories
 
 # 从本地目录安装
 dsh plugin --profile desktop add ./dsh-workspace-memories
@@ -94,7 +94,7 @@ dsh-workspace-memories/       # 本插件
 
 ## 许可证
 
-[MIT](LICENSE) — © 2026 lengfengng1-ai-architect
+[MIT](LICENSE) — © 2026 lengfengng-tech
 
 ---
 

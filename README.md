@@ -38,7 +38,7 @@ The package is plain JavaScript with no build step, so every install channel wor
 dsh plugin --profile desktop add dsh-workspace-memories
 
 # straight from GitHub (no build script needed — sources ship as-is)
-dsh plugin --profile desktop add github:lengfengng1-ai-architect/dsh-workspace-memories
+dsh plugin --profile desktop add github:lengfengng-tech/dsh-workspace-memories
 
 # from a local checkout
 dsh plugin --profile desktop add ./dsh-workspace-memories
@@ -94,7 +94,7 @@ Safety constraints: the browser panel can only address registered workspaces by 
 
 ## License
 
-[MIT](LICENSE) — © 2026 lengfengng1-ai-architect
+[MIT](LICENSE) — © 2026 lengfengng-tech
 
 ---
 

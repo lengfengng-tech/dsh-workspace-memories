@@ -32,10 +32,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lengfengng1-ai-architect/dsh-workspace-memories.git"
+    "url": "git+https://github.com/lengfengng-tech/dsh-workspace-memories.git"
   },
-  "homepage": "https://github.com/lengfengng1-ai-architect/dsh-workspace-memories#readme",
-  "bugs": "https://github.com/lengfengng1-ai-architect/dsh-workspace-memories/issues",
+  "homepage": "https://github.com/lengfengng-tech/dsh-workspace-memories#readme",
+  "bugs": "https://github.com/lengfengng-tech/dsh-workspace-memories/issues",
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
