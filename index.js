@@ -397,6 +397,11 @@ export function apply(ctx, config = {}) {
           const dispose = agent.ctx.systemPrompt.section({
             name: 'workspace-memory',
             order: PROMPT_SECTION_ORDER,
+            // Memory files are user prose: any `{{...}}` they contain (for example a
+            // documented `docker inspect --format '{{json .Config.Env}}'` command) is
+            // literal text, not a prompt variable reference. Opting this section out of
+            // interpolation keeps such notes from failing prompt assembly.
+            interpolate: false,
             text: () => buildMemoryText(dir),
           })
           agentRegistrations.add(dispose)

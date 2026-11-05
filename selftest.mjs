@@ -89,12 +89,14 @@ for (const bad of ['../x.md', 'a/b.md', '.hidden.md', 'noext', 'has space.md', '
 
 // --- prompt injection: agent/created registers a section rendering the files ---
 let sectionText
+let registeredSection
 const agent = {
   id: 'session-1',
   session: { header: { cwd: tmp } },
   ctx: {
     systemPrompt: {
       section: (section) => {
+        registeredSection = section
         sectionText = section.text
         return () => {}
       },
@@ -121,6 +123,18 @@ assert.equal(await fs.readFile(path.join(homeDir, 'conventions.md'), 'utf8'), '#
 const renderedAfter = sectionText()
 assert.match(renderedAfter, /conventions\.md/)
 assert.match(renderedAfter, /pnpm only/)
+
+// --- regression: memory prose must reach the prompt verbatim, never templated ---
+// User notes can legitimately contain `{{...}}` (e.g. a documented
+// `docker inspect --format '{{json .Config.Env}}'` command); the section opts
+// out of prompt interpolation, and the raw braces must survive into the text.
+assert.equal(registeredSection.name, 'workspace-memory')
+assert.equal(registeredSection.interpolate, false, 'memory section must opt out of {{...}} interpolation')
+await tool.execute(
+  { name: 'tagging-operations', content: "- verify with `docker inspect c --format '{{json .Config.Env}}'`\n" },
+  { agent },
+)
+assert.match(sectionText(), /\{\{json \.Config\.Env\}\}/)
 
 // tool validation failures
 await assert.rejects(() => tool.execute({ name: 'a/b', content: 'x' }, { agent }), /Invalid memory file name/)
