@@ -33,6 +33,8 @@ Works in every built-in agent preset (Standard, PTC, Minimal, Creator): the tool
 
 The panel selector's top entry, **🌐 Global — every workspace**, addresses one cross-project memory directory at `~/.dsh/workspace-memory/_global/`. It is seeded once with a blank `preferences.md` template (persona, style, communication, formatting) and never overwritten after that. Global memory sorts **before** workspace memory in the prompt, so project notes read as overrides of personal preferences.
 
+Too lazy to fill four blank sections by hand? Just tell any session **"帮我配置全局偏好"** ("help me set up my global preferences") — the agent interviews you question by question and writes the file itself via `save_workspace_memory` with `scope: "global"`.
+
 ## Installation
 
 The package is plain JavaScript with no build step, so every install channel works:
