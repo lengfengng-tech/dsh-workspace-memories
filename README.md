@@ -16,18 +16,22 @@ This plugin closes that gap with a small, explicit memory loop whose default sto
 
 1. **Every workspace gets a memory directory** — by default under the DSH data directory (`~/.dsh/workspace-memory/<workspace>/`), never inside the repo. Plain Markdown you can read, diff, and back up. (An opt-in `workspace` storage mode keeps memories in `<workspace>/.dsh/memory/` for teams who *want* them versioned alongside the code.)
 2. **Memories are injected automatically** — each session created in a workspace carries that workspace's memory files in its system prompt, alongside `AGENTS.md`, so a fresh session starts already "remembering".
-3. **The agent can write memories itself** — a global `save_workspace_memory` tool lets any session persist a decision, server detail, convention, or preference the moment you say "remember this".
+3. **The agent can write memories itself** — a global `save_workspace_memory` tool lets any session persist a decision, server detail, convention, or preference the moment you say "remember this" (pass `scope: "global"` for cross-project preferences).
 4. **You stay in control** — a sidebar panel lists, creates, edits, and deletes memory files per workspace, so memory stays inspectable and correctable instead of hidden in a database.
 
 ## Features
 
 | Capability | Where |
 |---|---|
-| Browse / create / edit / delete memory files | **Workspace Memory** sidebar panel (switch workspaces via the selector) |
+| Browse / create / edit / delete memory files | **Workspace Memory** sidebar panel (switch workspaces or the global scope via the selector) |
 | Ask the agent to remember something | Any session: "remember: …" → the agent calls `save_workspace_memory` |
-| Automatic recall | Every session in the workspace gets its memory files injected into its system prompt |
+| Automatic recall | Every session gets the **global** memory (all workspaces) followed by its **workspace** memory injected into its system prompt |
 
 Works in every built-in agent preset (Standard, PTC, Minimal, Creator): the tool is registered in the root composition, and global tools are visible to all presets unless a custom preset opts out with a `tools.restrict` allow list — add `save_workspace_memory` to that list if so.
+
+### Global memory
+
+The panel selector's top entry, **🌐 Global — every workspace**, addresses one cross-project memory directory at `~/.dsh/workspace-memory/_global/`. It is seeded once with a blank `preferences.md` template (persona, style, communication, formatting) and never overwritten after that. Global memory sorts **before** workspace memory in the prompt, so project notes read as overrides of personal preferences.
 
 ## Installation
 
@@ -73,7 +77,9 @@ Two storage modes, chosen by the plugin's `storage` config:
 | `workspace` | `<workspace>/.dsh/memory/` — inside the project | Team-shared memories meant to be committed alongside the code |
 
 ```
-~/.dsh/workspace-memory/     # default memory store, one subdirectory per workspace
+~/.dsh/workspace-memory/     # default memory store
+├── <workspace-key>/         #   one subdirectory per workspace
+└── _global/                 #   the cross-workspace global memory (panel: 🌐 Global)
 dsh-workspace-memories/        # this plugin
 ├── package.json             #   bundle manifest (dsh.bundle.patch + dsh.client)
 ├── cordis.patch.yml         #   plugin row declaration

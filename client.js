@@ -16,12 +16,15 @@ window.__ModuleLoader__.load({
 
     const NS = 'workspaceMemory'
     const PANEL_ID = 'workspace-memory'
+    /** Selector value that addresses the cross-workspace global scope. */
+    const GLOBAL_ID = '__global__'
 
     const en = {
       'panel.title': 'Workspace Memory',
       'panel.subtitle': 'Per-workspace memory files, stored in the DSH data directory by default — outside the project folder, so server configs and other machine-local notes never get committed. Injected into every session of the workspace.',
-      'workspace.label': 'Workspace',
+      'workspace.label': 'Memory scope',
       'workspace.none': 'No workspace is registered yet.',
+      'workspace.global': '🌐 Global — every workspace',
       'action.refresh': 'Refresh',
       'action.new': 'New file',
       'action.save': 'Save',
@@ -49,8 +52,9 @@ window.__ModuleLoader__.load({
     const zh = {
       'panel.title': '工作区记忆',
       'panel.subtitle': '每个工作区独立的记忆文件，默认保存在 DSH 数据目录、不进入项目文件夹——服务器配置等本机敏感信息不会被误提交。自动注入该工作区每个会话的上下文。',
-      'workspace.label': '工作区',
+      'workspace.label': '记忆范围',
       'workspace.none': '尚未注册任何工作区。',
+      'workspace.global': '🌐 全局（所有工作区通用）',
       'action.refresh': '刷新',
       'action.new': '新建文件',
       'action.save': '保存',
@@ -256,8 +260,10 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = useState(false)
 
       // Default the selector to the Workspace of the Session the main view
-      // retains, falling back to the first listed Workspace.
+      // retains, falling back to the first listed Workspace. The reserved
+      // global scope always stays selected once chosen.
       useEffect(() => {
+        if (workspaceId === GLOBAL_ID) return
         if (workspaces.length === 0) {
           if (workspaceId !== null) setWorkspaceId(null)
           return
@@ -284,7 +290,9 @@ window.__ModuleLoader__.load({
         }
         if (!options.quiet) setFilesState((previous) => ({ ...previous, status: 'loading' }))
         try {
-          const value = await api('list', { query: { workspaceId: id } })
+          const query = { workspaceId: id }
+          if (id === GLOBAL_ID) query.scope = 'global'
+          const value = await api('list', { query })
           const files = Array.isArray(value.files) ? value.files : []
           setFilesState({ status: 'ready', files })
           return files
@@ -300,7 +308,9 @@ window.__ModuleLoader__.load({
         setNotice(null)
         setConfirmingDelete(false)
         try {
-          const value = await api('read', { query: { workspaceId, name } })
+          const query = { workspaceId, name }
+          if (workspaceId === GLOBAL_ID) query.scope = 'global'
+          const value = await api('read', { query })
           setSelected(name)
           setContent(value.content)
           setSavedContent(value.content)
@@ -330,7 +340,9 @@ window.__ModuleLoader__.load({
         setBusy(true)
         setNotice(null)
         try {
-          await api('write', { body: { workspaceId, name: selected, content } })
+          const body = { workspaceId, name: selected, content }
+          if (workspaceId === GLOBAL_ID) body.scope = 'global'
+          await api('write', { body })
           setSavedContent(content)
           setNotice({ kind: 'ok', text: t('notice.saved') })
           await refresh(workspaceId, { quiet: true })
@@ -352,7 +364,9 @@ window.__ModuleLoader__.load({
         setBusy(true)
         setNotice(null)
         try {
-          await api('write', { body: { workspaceId, name, content: '' } })
+          const body = { workspaceId, name, content: '' }
+          if (workspaceId === GLOBAL_ID) body.scope = 'global'
+          await api('write', { body })
           setCreating(false)
           setNewName('')
           setNotice({ kind: 'ok', text: t('notice.created') })
@@ -374,7 +388,9 @@ window.__ModuleLoader__.load({
         setBusy(true)
         setNotice(null)
         try {
-          await api('delete', { body: { workspaceId, name: selected } })
+          const body = { workspaceId, name: selected }
+          if (workspaceId === GLOBAL_ID) body.scope = 'global'
+          await api('delete', { body })
           setSelected(null)
           setContent('')
           setSavedContent('')
@@ -493,9 +509,10 @@ window.__ModuleLoader__.load({
               id: 'dwm-workspace',
               className: 'dwm-select',
               value: workspaceId || '',
-              disabled: workspaces.length === 0,
+              disabled: workspaces.length === 0 && workspaceId !== GLOBAL_ID,
               onChange: (event) => setWorkspaceId(event.target.value || null),
             },
+              h('option', { value: GLOBAL_ID }, t('workspace.global')),
               workspaces.length === 0 && h('option', { value: '' }, t('workspace.none')),
               workspaces.map((item) => h('option', { key: item.workspaceId, value: item.workspaceId },
                 item.title && item.title.trim() !== '' ? `${item.title} — ${item.path}` : item.path)),

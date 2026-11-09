@@ -4,7 +4,9 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
-import { apply } from './index.js'
+import { apply, GLOBAL_SEED_CONTENT } from './index.js'
+
+const GLOBAL_SEED = GLOBAL_SEED_CONTENT
 
 const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'dwm-test-'))
 const home = await fs.mkdtemp(path.join(os.tmpdir(), 'dwm-home-'))
@@ -55,7 +57,7 @@ const env = async (r) => ({ status: r.status, body: await r.json() })
 
 // list on a workspace without memories: empty, home-mode display path
 let out = await env(await call('/api/workspace-memory/list', new Request('http://h/api/workspace-memory/list?workspaceId=ws-1')))
-assert.deepEqual(out.body, { ok: true, value: { directory: homeDir, storage: 'home', files: [] } })
+assert.deepEqual(out.body, { ok: true, value: { directory: homeDir, storage: 'home', scope: 'workspace', files: [] } })
 
 // unknown workspace
 out = await env(await call('/api/workspace-memory/list', new Request('http://h/api/workspace-memory/list?workspaceId=nope')))
@@ -87,15 +89,17 @@ for (const bad of ['../x.md', 'a/b.md', '.hidden.md', 'noext', 'has space.md', '
   assert.equal(out.body.error.code, 'workspace-memory/invalid-name', bad)
 }
 
-// --- prompt injection: agent/created registers a section rendering the files ---
+// --- prompt injection: agent/created registers sections rendering the files ---
 let sectionText
 let registeredSection
+const registeredSections = []
 const agent = {
   id: 'session-1',
   session: { header: { cwd: tmp } },
   ctx: {
     systemPrompt: {
       section: (section) => {
+        registeredSections.push(section)
         registeredSection = section
         sectionText = section.text
         return () => {}
@@ -111,6 +115,20 @@ assert.match(rendered, /## Workspace Memory/)
 assert.match(rendered, /OUTSIDE the project tree/)
 assert.match(rendered, /architecture\.md/)
 assert.match(rendered, /use DSH plugins/)
+
+// --- the global section registers first, also literal, and renders the seed ---
+assert.deepEqual(registeredSections.map((section) => section.name), ['global-memory', 'workspace-memory'])
+const globalSection = registeredSections[0]
+assert.ok(globalSection.order < registeredSection.order, 'global section sorts before the workspace section')
+assert.equal(globalSection.interpolate, false, 'global section must opt out of {{...}} interpolation too')
+for (let attempt = 0; attempt < 20 && !registeredSections.globalText; attempt++) {
+  await new Promise((resolve) => setImmediate(resolve))
+  const text = globalSection.text()
+  if (text !== '') registeredSections.globalText = text
+}
+assert.match(registeredSections.globalText, /## Global Memory/)
+assert.match(registeredSections.globalText, /preferences\.md/)
+assert.match(registeredSections.globalText, /## 人格 \/ Persona/)
 
 // --- the agent tool persists a memory and the section picks it up ---
 const tool = app.tools.get('save_workspace_memory')
@@ -136,6 +154,38 @@ await tool.execute(
 )
 assert.match(sectionText(), /\{\{json \.Config\.Env\}\}/)
 
+// === global scope: seeded template, panel routes, and the tool's scope arg ===
+const globalDir = path.join(home, '_global')
+out = await env(await call('/api/workspace-memory/list', new Request('http://h/api/workspace-memory/list?scope=global')))
+assert.equal(out.status, 200, JSON.stringify(out))
+assert.equal(out.body.value.scope, 'global')
+assert.equal(out.body.value.directory, globalDir)
+assert.ok(out.body.value.files.some((file) => file.name === 'preferences.md'), 'global seed template exists')
+assert.equal(await fs.readFile(path.join(globalDir, 'preferences.md'), 'utf8'), GLOBAL_SEED)
+
+// write + read on the global scope (no workspaceId needed)
+out = await env(await call('/api/workspace-memory/write', new Request('http://h/api/workspace-memory/write', {
+  method: 'POST', headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ workspaceId: '__global__', scope: 'global', name: 'persona.md', content: '# Persona\n\n- 资深搭档\n' }),
+})))
+assert.equal(out.status, 200, JSON.stringify(out))
+out = await env(await call('/api/workspace-memory/read', new Request('http://h/api/workspace-memory/read?scope=global&name=persona.md')))
+assert.equal(out.body.value.content, '# Persona\n\n- 资深搭档\n')
+
+// the tool persists global memory when asked to
+const globalValue = await tool.execute({ name: 'style', content: '# Style\n\n- 口语化\n', scope: 'global' }, { agent })
+assert.match(String(globalValue), /Saved global memory "style\.md"/)
+assert.equal(await fs.readFile(path.join(globalDir, 'style.md'), 'utf8'), '# Style\n\n- 口语化\n')
+
+// deleting one global file never disturbs the workspace store
+out = await env(await call('/api/workspace-memory/delete', new Request('http://h/api/workspace-memory/delete', {
+  method: 'POST', headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ scope: 'global', name: 'persona.md' }),
+})))
+assert.equal(out.body.value.deleted, true)
+out = await env(await call('/api/workspace-memory/list', new Request('http://h/api/workspace-memory/list?workspaceId=ws-1')))
+assert.ok(out.body.value.files.every((file) => file.name !== 'persona.md'))
+
 // tool validation failures
 await assert.rejects(() => tool.execute({ name: 'a/b', content: 'x' }, { agent }), /Invalid memory file name/)
 await assert.rejects(() => tool.execute({ name: 'ok', content: 42 }, { agent }), /must be a Markdown string/)
@@ -150,7 +200,7 @@ out = await env(await call('/api/workspace-memory/read', new Request('http://h/a
 assert.equal(out.status, 404)
 
 // === workspace storage mode ===
-const appWs = makeCtx({ storage: 'workspace', directory: '.dsh/memory' })
+const appWs = makeCtx({ storage: 'workspace', directory: '.dsh/memory', storageDir: home })
 const callWs = (p, request) => appWs.routes.get(p).fetch(request)
 out = await env(await callWs('/api/workspace-memory/write', new Request('http://h/api/workspace-memory/write', {
   method: 'POST', headers: { 'content-type': 'application/json' },

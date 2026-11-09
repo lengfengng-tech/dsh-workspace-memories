@@ -14,16 +14,18 @@
  * Three contributions make the memory real:
  *
  * 1. Panel API — exact Fetch routes on Connection's shared `/api` channel so
- *    the browser panel can list, read, create, update, and delete the files:
- *      GET  /api/workspace-memory/list?workspaceId=<id>
- *      GET  /api/workspace-memory/read?workspaceId=<id>&name=<file>
- *      POST /api/workspace-memory/write   { workspaceId, name, content }
- *      POST /api/workspace-memory/delete  { workspaceId, name }
- * 2. Prompt injection — an `agent/created` listener registers a per-agent
- *    system-prompt section that renders the workspace's current memory files
- *    into every session running in that directory.
+ *    the browser panel can list, read, create, update, and delete the files.
+ *    Every route accepts an optional `scope=global` field addressing the
+ *    cross-workspace memory directory (`<storageDir>/_global/`):
+ *      GET  /api/workspace-memory/list?workspaceId=<id>[&scope=global]
+ *      GET  /api/workspace-memory/read?workspaceId=<id>[&scope=global]&name=<file>
+ *      POST /api/workspace-memory/write   { workspaceId, [scope], name, content }
+ *      POST /api/workspace-memory/delete  { workspaceId, [scope], name }
+ * 2. Prompt injection — an `agent/created` listener registers two per-agent
+ *    system-prompt sections: `global-memory` (every workspace) followed by
+ *    `workspace-memory` (this directory).
  * 3. Agent tool — `save_workspace_memory` lets the model persist a memory
- *    file itself when the user asks it to remember something.
+ *    file itself, scoped to the workspace or globally.
  *
  * Route responses use one envelope: `{ ok: true, value }` or
  * `{ ok: false, error: { code, message } }`. The panel addresses memory only
@@ -47,6 +49,29 @@ const MAX_CONTENT_BYTES = 1024 * 1024
 const PROMPT_MAX_FILES = 20
 const PROMPT_MAX_FILE_CHARS = 32768
 const PROMPT_SECTION_ORDER = 9800
+const GLOBAL_SECTION_ORDER = 9700
+/** Selector value the panel uses for the cross-workspace scope. */
+const GLOBAL_WORKSPACE_ID = '__global__'
+/** Reserved directory name under the storage root; workspace keys always carry a `-<hash>` suffix, so this cannot collide. */
+const GLOBAL_DIR_NAME = '_global'
+const GLOBAL_SEED_FILE = 'preferences.md'
+/** Starter template for the global scope: persona, style, communication, and formatting hints in one file. */
+export const GLOBAL_SEED_CONTENT = `# 全局偏好 / Global Preferences
+<!-- 全局记忆对每一个工作区生效，适合放人格、风格、沟通、格式这类跨项目的个人偏好。
+     工作区记忆优先于本文件；只填你在乎的项，其余留空即可。 -->
+
+## 人格 / Persona
+<!-- 你是谁、希望 AI 以什么身份/视角与你交流（例如：资深搭档、严格评审、耐心的老师） -->
+
+## 风格 / Style
+<!-- 语言风格：正式还是口语、中文还是英文优先、技术深度、是否允许玩笑 -->
+
+## 沟通 / Communication
+<!-- 亲切程度、热情程度、emoji 使用、回复详细还是简洁 -->
+
+## 格式 / Formatting
+<!-- 回答格式：要不要标题和小标题、列表、表格、代码块、可视化/图示 -->
+`
 const INVALID_NAME_CHARS = /[\s/\\:*?"<>|]/
 const CONTROL_CHARS = /[\x00-\x1f\x7f]/
 
@@ -80,6 +105,30 @@ export function apply(ctx, config = {}) {
   const storageDir = typeof config.storageDir === 'string' && config.storageDir.trim() !== ''
     ? path.resolve(config.storageDir.trim())
     : path.join(os.homedir(), '.dsh', 'workspace-memory')
+
+  /** Absolute directory holding the cross-workspace global memory files. */
+  const globalDir = path.join(storageDir, GLOBAL_DIR_NAME)
+
+  /**
+   * Seed the global memory directory with one starter template. Runs only
+   * while the directory does not exist yet; an existing directory (even an
+   * emptied one) is never rewritten, so user edits always win. Concurrent
+   * callers share one attempt, so an activation-time seed and a first list
+   * cannot race each other into a half-seeded state.
+   */
+  let globalSeed = null
+  async function seedGlobalMemory() {
+    globalSeed ??= (async () => {
+      try {
+        await fs.mkdir(globalDir, { recursive: false })
+      } catch {
+        return // already exists — seeding is one-shot
+      }
+      await fs.writeFile(path.join(globalDir, GLOBAL_SEED_FILE), GLOBAL_SEED_CONTENT, 'utf8')
+    })().catch(() => { /* seeding must never break the caller */ })
+    return globalSeed
+  }
+  void seedGlobalMemory()
 
   // ---------------------------------------------------------------------------
   // Shared memory-file helpers
@@ -199,15 +248,15 @@ export function apply(ctx, config = {}) {
   const memoryCaches = new Map()
 
   /**
-   * Render the workspace memory section for one memory directory, re-reading
-   * file contents only when the directory signature (names, sizes, mtimes)
-   * changed. Runs synchronously because prompt-section providers are
-   * synchronous; the stat round-trip over a handful of small files is
-   * negligible per model step.
+   * Render one memory section for a memory directory, re-reading file contents
+   * only when the directory signature (names, sizes, mtimes) changed. Runs
+   * synchronously because prompt-section providers are synchronous; the stat
+   * round-trip over a handful of small files is negligible per model step.
    * @param {string} dir - absolute memory directory.
+   * @param {'workspace' | 'global'} kind - which scope this section renders.
    * @returns {string} section text, empty when no memory exists.
    */
-  function buildMemoryText(dir) {
+  function buildMemoryText(dir, kind) {
     let signature = 'missing'
     const files = []
     try {
@@ -224,14 +273,11 @@ export function apply(ctx, config = {}) {
 
     let text = ''
     if (files.length > 0) {
-      const parts = [
-        '## Workspace Memory',
-        '',
-        'This workspace has durable memory files, one Markdown file per topic, managed from the "Workspace Memory" sidebar panel. '
-          + 'By default they live in the DSH data directory OUTSIDE the project tree, so machine-local details (server configurations, environment quirks, personal conventions) never land in the repository. '
-          + 'Treat them as trusted project memory alongside AGENTS.md. When the user asks you to remember a project decision, convention, server detail, or preference, persist it with the save_workspace_memory tool.',
-        '',
-      ]
+      const heading = kind === 'global' ? '## Global Memory' : '## Workspace Memory'
+      const intro = kind === 'global'
+        ? 'These global memory files apply to EVERY workspace — cross-project persona, style, and preferences. They are managed from the "Workspace Memory" sidebar panel (the 全局/Global scope) and stored in the DSH data directory. Workspace memory, when present, takes precedence over these global notes for project-specific matters. When the user asks you to remember a personal preference that should follow them across projects, persist it here with the save_workspace_memory tool and scope "global".'
+        : 'This workspace has durable memory files, one Markdown file per topic, managed from the "Workspace Memory" sidebar panel. By default they live in the DSH data directory OUTSIDE the project tree, so machine-local details (server configurations, environment quirks, personal conventions) never land in the repository. Treat them as trusted project memory alongside AGENTS.md. When the user asks you to remember a project decision, convention, server detail, or preference, persist it with the save_workspace_memory tool.'
+      const parts = [heading, '', intro, '']
       for (const file of files.slice(0, PROMPT_MAX_FILES)) {
         let content
         try {
@@ -258,11 +304,17 @@ export function apply(ctx, config = {}) {
   // ---------------------------------------------------------------------------
 
   /**
-   * Resolve the fenced memory directory for one registered workspace.
-   * @param {string | null} workspaceId - registry workspace id from the client.
-   * @returns {{ dir: string, display: string } | { error: Response }}
+   * Resolve the fenced memory directory for one scope.
+   * @param {string | null} workspaceId - registry workspace id from the client
+   *   (ignored for the global scope).
+   * @param {unknown} scope - 'global' for the cross-workspace scope; anything
+   *   else (including undefined) keeps the original per-workspace behavior.
+   * @returns {{ dir: string, display: string, scope: 'workspace' | 'global' } | { error: Response }}
    */
-  function resolveMemoryDir(workspaceId) {
+  function resolveMemoryDir(workspaceId, scope) {
+    if (scope === 'global' || workspaceId === GLOBAL_WORKSPACE_ID) {
+      return { dir: globalDir, display: globalDir, scope: 'global' }
+    }
     if (typeof workspaceId !== 'string' || workspaceId === '') {
       return { error: fail(400, 'workspace-memory/workspace-required', 'A workspaceId query or body field is required.') }
     }
@@ -270,19 +322,22 @@ export function apply(ctx, config = {}) {
     if (workspace === undefined) {
       return { error: fail(404, 'workspace-memory/unknown-workspace', `Unknown workspace: ${workspaceId}`) }
     }
-    return memoryDirFor(path.resolve(workspace.path))
+    const resolved = memoryDirFor(path.resolve(workspace.path))
+    if (resolved.error) return resolved
+    return { ...resolved, scope: 'workspace' }
   }
 
   async function handleList(request) {
-    const workspaceId = new URL(request.url).searchParams.get('workspaceId')
-    const resolved = resolveMemoryDir(workspaceId)
+    const params = new URL(request.url).searchParams
+    const resolved = resolveMemoryDir(params.get('workspaceId'), params.get('scope'))
     if (resolved.error) return resolved.error
-    return ok({ directory: resolved.display, storage, files: await listFiles(resolved.dir) })
+    if (resolved.scope === 'global') await seedGlobalMemory().catch(() => {})
+    return ok({ directory: resolved.display, storage, scope: resolved.scope, files: await listFiles(resolved.dir) })
   }
 
   async function handleRead(request) {
     const params = new URL(request.url).searchParams
-    const resolved = resolveMemoryDir(params.get('workspaceId'))
+    const resolved = resolveMemoryDir(params.get('workspaceId'), params.get('scope'))
     if (resolved.error) return resolved.error
     const named = validateName(params.get('name'))
     if (named.error) return named.error
@@ -303,7 +358,7 @@ export function apply(ctx, config = {}) {
     if (typeof body !== 'object' || body === null) {
       return fail(400, 'workspace-memory/bad-request', 'A JSON body is required.')
     }
-    const resolved = resolveMemoryDir(body.workspaceId)
+    const resolved = resolveMemoryDir(body.workspaceId, body.scope)
     if (resolved.error) return resolved.error
     const named = validateName(body.name)
     if (named.error) return named.error
@@ -324,7 +379,7 @@ export function apply(ctx, config = {}) {
     if (typeof body !== 'object' || body === null) {
       return fail(400, 'workspace-memory/bad-request', 'A JSON body is required.')
     }
-    const resolved = resolveMemoryDir(body.workspaceId)
+    const resolved = resolveMemoryDir(body.workspaceId, body.scope)
     if (resolved.error) return resolved.error
     const named = validateName(body.name)
     if (named.error) return named.error
@@ -387,6 +442,18 @@ export function apply(ctx, config = {}) {
   ctx.on('agent/created', ({ agent }) => {
     // This listener runs inside agent creation; it must never reject.
     try {
+      // Global memory follows the user into every workspace and sorts before
+      // the workspace section, so project-specific notes read as overrides.
+      const globalDispose = agent.ctx.systemPrompt.section({
+        name: 'global-memory',
+        order: GLOBAL_SECTION_ORDER,
+        // Same rationale as the workspace section: user prose stays literal.
+        interpolate: false,
+        text: () => buildMemoryText(globalDir, 'global'),
+      })
+      agentRegistrations.add(globalDispose)
+    } catch { /* the agent may already be disposed; its context rejects registration */ }
+    try {
       const cwd = agentCwd(agent)
       if (typeof cwd !== 'string' || cwd === '') return
       void resolveRoot(cwd).then((root) => {
@@ -402,7 +469,7 @@ export function apply(ctx, config = {}) {
             // literal text, not a prompt variable reference. Opting this section out of
             // interpolation keeps such notes from failing prompt assembly.
             interpolate: false,
-            text: () => buildMemoryText(dir),
+            text: () => buildMemoryText(dir, 'workspace'),
           })
           agentRegistrations.add(dispose)
         } catch { /* the agent may already be disposed; its context rejects registration */ }
@@ -417,10 +484,11 @@ export function apply(ctx, config = {}) {
   ctx.effect(() => ctx.tools.register({
     name: 'save_workspace_memory',
     description:
-      'Save durable memory for this workspace as a Markdown file. '
+      'Save durable memory as a Markdown file. '
+      + 'By default the memory is scoped to this workspace and injected into every session working in it; with scope "global" it applies to every workspace instead (persona, style, and cross-project preferences belong there). '
       + 'Memories are stored outside the project directory by default (in the DSH data directory), so machine-local details such as server configurations never enter the repository. '
       + 'Use it when the user asks you to remember a project decision, convention, server detail, preference, or fact across sessions. '
-      + 'Memory files are injected into every session working in this workspace and can be reviewed in the Workspace Memory sidebar panel.',
+      + 'Memory files can be reviewed in the Workspace Memory sidebar panel.',
     parameters: {
       type: 'object',
       properties: {
@@ -432,6 +500,11 @@ export function apply(ctx, config = {}) {
           type: 'string',
           description: 'Complete Markdown content to store; overwrites the existing file of the same name.',
         },
+        scope: {
+          type: 'string',
+          enum: ['workspace', 'global'],
+          description: 'Which memory scope to write: "workspace" (default, this workspace only) or "global" (every workspace).',
+        },
       },
       required: ['name', 'content'],
       additionalProperties: false,
@@ -441,10 +514,7 @@ export function apply(ctx, config = {}) {
       render: (_args, value) => [{ type: 'text', text: String(value) }],
     },
     async execute(args, exec) {
-      const cwd = agentCwd(exec.agent)
-      if (typeof cwd !== 'string' || cwd === '') {
-        throw new Error('This session has no working directory, so there is no workspace to remember for.')
-      }
+      const scope = args?.scope === 'global' ? 'global' : 'workspace'
       const name = normalizeToolName(args?.name)
       if (name === null) {
         throw new Error(`Invalid memory file name ${JSON.stringify(args?.name)}: use letters, digits, dot, underscore or hyphen.`)
@@ -455,12 +525,25 @@ export function apply(ctx, config = {}) {
       if (Buffer.byteLength(args.content, 'utf8') > MAX_CONTENT_BYTES) {
         throw new Error(`Memory content exceeds ${MAX_CONTENT_BYTES} bytes.`)
       }
-      const root = await resolveRoot(cwd)
-      const memory = memoryDirFor(root)
-      if (memory.error) throw new Error('The configured memory directory escapes the workspace.')
-      await fs.mkdir(memory.dir, { recursive: true })
-      await fs.writeFile(path.join(memory.dir, name), args.content, 'utf8')
-      return `Saved workspace memory "${name}"; every session in this workspace now sees it.`
+      let dir
+      if (scope === 'global') {
+        await seedGlobalMemory().catch(() => {})
+        dir = globalDir
+      } else {
+        const cwd = agentCwd(exec.agent)
+        if (typeof cwd !== 'string' || cwd === '') {
+          throw new Error('This session has no working directory, so there is no workspace to remember for.')
+        }
+        const root = await resolveRoot(cwd)
+        const memory = memoryDirFor(root)
+        if (memory.error) throw new Error('The configured memory directory escapes the workspace.')
+        dir = memory.dir
+      }
+      await fs.mkdir(dir, { recursive: true })
+      await fs.writeFile(path.join(dir, name), args.content, 'utf8')
+      return scope === 'global'
+        ? `Saved global memory "${name}"; every session in every workspace now sees it.`
+        : `Saved workspace memory "${name}"; every session in this workspace now sees it.`
     },
   }), 'workspace-memory: save tool')
 }
