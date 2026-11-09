@@ -58,7 +58,8 @@ const GLOBAL_SEED_FILE = 'preferences.md'
 /** Starter template for the global scope: persona, style, communication, and formatting hints in one file. */
 export const GLOBAL_SEED_CONTENT = `# 全局偏好 / Global Preferences
 <!-- 全局记忆对每一个工作区生效，适合放人格、风格、沟通、格式这类跨项目的个人偏好。
-     工作区记忆优先于本文件；只填你在乎的项，其余留空即可。 -->
+     工作区记忆优先于本文件；只填你在乎的项，其余留空即可。
+     懒得自己填？在任意会话对 Agent 说「帮我配置全局偏好」，它会逐个问你几个问题并自动写好。 -->
 
 ## 人格 / Persona
 <!-- 你是谁、希望 AI 以什么身份/视角与你交流（例如：资深搭档、严格评审、耐心的老师） -->
