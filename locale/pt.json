@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Memória do espaço de trabalho",
+    "description": "Adiciona um painel lateral que lista e gerencia os arquivos de memória anexados a cada espaço de trabalho, salvos por padrão no diretório de dados do DSH como complemento de arquivos como o AGENTS.md."
+  }
+}

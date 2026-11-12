@@ -26,6 +26,7 @@ DSH 的 Agent 跨会话是无状态的：一个会话"学到"的东西——项�
 | 浏览 / 新建 / 编辑 / 删除记忆文件 | 侧栏「工作区记忆」面板（可切换工作区或全局范围） |
 | 让 Agent 记住事情 | 任意会话直接说「记住：…」→ Agent 调用 `save_workspace_memory` |
 | 记忆自动生效 | 每个会话的系统提示先携带**全局**记忆（所有工作区通用），再携带**工作区**记忆 |
+| 界面多语言 | 面板跟随应用语言，完整支持 DSH 八国语言（中/英/日/西/法/德/俄/葡），缺键回退英文 |
 
 所有内置 Agent 预设（标准、PTC、极简、创造）均可用：工具注册在根组合，全局工具默认对所有预设可见。唯一例外是自定义预设使用 `tools.restrict` 白名单（`allow: [...]`）的情况——把 `save_workspace_memory` 加进白名单即可。
 
@@ -85,9 +86,10 @@ dsh-workspace-memories/       # 本插件
 ├── cordis.patch.yml      #   插件行声明
 ├── index.js              #   宿主：/api 路由 + 记忆注入 + 写记忆工具
 ├── client.js             #   浏览器：侧栏入口 + 管理面板
-├── locale/               #   面板文案（中/英）
+├── locale/               #   面板文案 + 插件页 meta，八国语言齐全
 ├── icon.svg
-└── selftest.mjs          #   宿主逻辑自测：node selftest.mjs
+├── selftest.mjs          #   宿主逻辑自测：node selftest.mjs
+└── scripts/i18n-test.mjs #   客户端字典校验（8 语言键集 / 占位符一致）
 ```
 
 安全约束：浏览器面板只能按 `workspaceId` 操作已注册工作区（无法触达任意宿主路径）；文件名严格校验（拒绝路径分隔符、`..`、空白与控制字符）；单文件上限 1 MiB；注入提示时单文件截取前 32K 字符、最多 20 个文件。
@@ -95,7 +97,7 @@ dsh-workspace-memories/       # 本插件
 ## 开发与调试
 
 - 以 `link:` 方式安装时（本地路径安装即是）：改 `client.js`（界面）经客户端 HMR 即时生效；改 `index.js`（宿主）需重启 DSH 加载新模块。
-- 自测：`node selftest.mjs`（模拟插件上下文，覆盖路由、注入渲染、工具写入与校验失败）。
+- 自测：`node selftest.mjs`（模拟插件上下文，覆盖路由、注入渲染、工具写入与校验失败）；`node scripts/i18n-test.mjs`（八国语言键集与占位符一致性）。
 - 运行时检查：宿主条目 `include:workspace-memory` 应为 `active`；客户端 slot `sidebar.panellist` 应有 `workspace-memory` 占用项；`save_workspace_memory` 应出现在工具列表中。
 
 ## 许可证

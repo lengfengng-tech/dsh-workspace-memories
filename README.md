@@ -26,6 +26,7 @@ This plugin closes that gap with a small, explicit memory loop whose default sto
 | Browse / create / edit / delete memory files | **Workspace Memory** sidebar panel (switch workspaces or the global scope via the selector) |
 | Ask the agent to remember something | Any session: "remember: …" → the agent calls `save_workspace_memory` |
 | Automatic recall | Every session gets the **global** memory (all workspaces) followed by its **workspace** memory injected into its system prompt |
+| Localized UI | The panel follows the app language in all eight DSH languages (中文 / English / 日本語 / Español / Français / Deutsch / Русский / Português), falling back to English for missing keys |
 
 Works in every built-in agent preset (Standard, PTC, Minimal, Creator): the tool is registered in the root composition, and global tools are visible to all presets unless a custom preset opts out with a `tools.restrict` allow list — add `save_workspace_memory` to that list if so.
 
@@ -87,9 +88,10 @@ dsh-workspace-memories/        # this plugin
 ├── cordis.patch.yml         #   plugin row declaration
 ├── index.js                 #   host: /api routes + prompt injection + the save tool
 ├── client.js                #   browser: sidebar entry + management panel
-├── locale/                  #   panel copy (en, zh)
+├── locale/                  #   panel copy + plugin-page meta, all eight DSH languages
 ├── icon.svg
-└── selftest.mjs             #   host-logic self-test: node selftest.mjs
+├── selftest.mjs             #   host-logic self-test: node selftest.mjs
+└── scripts/i18n-test.mjs    #   client dictionary check (8 languages, key sets, placeholders)
 ```
 
 Safety constraints: the browser panel can only address registered workspaces by `workspaceId` (no arbitrary host paths); file names are strictly validated (no path separators, `..`, whitespace, or control characters); one file is capped at 1 MiB; prompt injection truncates each file to 32K characters and caps at 20 files.
@@ -97,7 +99,7 @@ Safety constraints: the browser panel can only address registered workspaces by 
 ## Development
 
 - Install with a `link:` dependency (local-path install does this): editing `client.js` hot-reloads in the page via the client HMR receiver; editing `index.js` (host code) requires a DSH restart to load the new module generation.
-- Run the self-test: `node selftest.mjs` (mocks the plugin context; covers routes, prompt rendering, tool writes, and validation failures).
+- Run the self-test: `node selftest.mjs` (mocks the plugin context; covers routes, prompt rendering, tool writes, and validation failures); `node scripts/i18n-test.mjs` checks the eight-language dictionaries (key sets, placeholders).
 - Runtime checks: host entry `include:workspace-memory` should be `active`; the client slot `sidebar.panellist` should list a `workspace-memory` occupant; `save_workspace_memory` should appear in the tool list.
 
 ## License

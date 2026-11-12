@@ -79,7 +79,190 @@ window.__ModuleLoader__.load({
       'error.generic': '操作失败。',
     }
 
-    const fallback = (key) => en[key] || key
+    const ja = {
+      'panel.title': 'ワークスペースメモリ',
+      'panel.subtitle': 'ワークスペースごとのメモリファイル。デフォルトでは DSH データディレクトリに保存され、プロジェクトフォルダーの外にあるため、サーバー設定などの機密ローカル情報が誤ってコミットされることはありません。このワークスペースのすべてのセッションに注入されます。',
+      'workspace.label': 'メモリの範囲',
+      'workspace.none': 'ワークスペースはまだ登録されていません。',
+      'workspace.global': '🌐 グローバル（すべてのワークスペース）',
+      'action.refresh': '更新',
+      'action.new': '新規ファイル',
+      'action.save': '保存',
+      'action.delete': '削除',
+      'action.confirmDelete': '削除を確認',
+      'action.cancel': 'キャンセル',
+      'action.create': '作成',
+      'list.loading': '読み込み中…',
+      'list.empty': 'メモリファイルはまだありません',
+      'list.emptyHint': '.md ファイルを作成して、このワークスペースのメモ、規約、決定事項を記録しましょう。',
+      'list.error': 'メモリファイルの読み込みに失敗しました。',
+      'new.nameLabel': 'ファイル名',
+      'new.placeholder': '例: architecture.md',
+      'new.invalid': '英字、数字、ドット、アンダースコア、ハイフンが使用できます。.md 拡張子がない場合は自動で付加されます。',
+      'editor.hint': '左側のメモリファイルを選択するか、新規作成してください。',
+      'editor.placeholder': 'Markdown でメモリの内容を書きます…',
+      'editor.dirty': '未保存の変更があります',
+      'editor.readonlyMissing': 'このファイルはディスク上に存在しなくなりました。',
+      'notice.saved': '保存しました。',
+      'notice.created': '作成しました。',
+      'notice.deleted': '削除しました。',
+      'error.generic': '操作に失敗しました。',
+    }
+
+    const es = {
+      'panel.title': 'Memoria del espacio de trabajo',
+      'panel.subtitle': 'Archivos de memoria por espacio de trabajo, guardados por defecto en el directorio de datos de DSH — fuera de la carpeta del proyecto, por lo que las configuraciones de servidor y otras notas locales sensibles nunca se confirman por error. Se inyectan en cada sesión del espacio de trabajo.',
+      'workspace.label': 'Ámbito de la memoria',
+      'workspace.none': 'Aún no hay ningún espacio de trabajo registrado.',
+      'workspace.global': '🌐 Global — todos los espacios de trabajo',
+      'action.refresh': 'Actualizar',
+      'action.new': 'Nuevo archivo',
+      'action.save': 'Guardar',
+      'action.delete': 'Eliminar',
+      'action.confirmDelete': 'Confirmar eliminación',
+      'action.cancel': 'Cancelar',
+      'action.create': 'Crear',
+      'list.loading': 'Cargando…',
+      'list.empty': 'Aún no hay archivos de memoria',
+      'list.emptyHint': 'Crea un archivo .md para guardar notas, convenciones y decisiones de este espacio de trabajo.',
+      'list.error': 'No se pudieron cargar los archivos de memoria.',
+      'new.nameLabel': 'Nombre del archivo',
+      'new.placeholder': 'p. ej., architecture.md',
+      'new.invalid': 'Se admiten letras, números, punto, guion bajo y guion; la extensión .md se añade automáticamente si falta.',
+      'editor.hint': 'Selecciona un archivo de memoria a la izquierda o crea uno nuevo.',
+      'editor.placeholder': 'Escribe el contenido de la memoria en Markdown…',
+      'editor.dirty': 'Cambios sin guardar',
+      'editor.readonlyMissing': 'Este archivo ya no existe en el disco.',
+      'notice.saved': 'Guardado.',
+      'notice.created': 'Creado.',
+      'notice.deleted': 'Eliminado.',
+      'error.generic': 'La operación falló.',
+    }
+
+    const fr = {
+      'panel.title': 'Mémoire de l’espace de travail',
+      'panel.subtitle': 'Fichiers de mémoire par espace de travail, stockés par défaut dans le répertoire de données de DSH — en dehors du dossier du projet, afin que les configurations serveur et autres notes locales sensibles ne soient jamais validées par erreur. Ils sont injectés dans chaque session de l’espace de travail.',
+      'workspace.label': 'Portée de la mémoire',
+      'workspace.none': 'Aucun espace de travail n’est encore enregistré.',
+      'workspace.global': '🌐 Global — tous les espaces de travail',
+      'action.refresh': 'Actualiser',
+      'action.new': 'Nouveau fichier',
+      'action.save': 'Enregistrer',
+      'action.delete': 'Supprimer',
+      'action.confirmDelete': 'Confirmer la suppression',
+      'action.cancel': 'Annuler',
+      'action.create': 'Créer',
+      'list.loading': 'Chargement…',
+      'list.empty': 'Aucun fichier de mémoire pour le moment',
+      'list.emptyHint': 'Créez un fichier .md pour conserver les notes, conventions et décisions de cet espace de travail.',
+      'list.error': 'Échec du chargement des fichiers de mémoire.',
+      'new.nameLabel': 'Nom du fichier',
+      'new.placeholder': 'p. ex. architecture.md',
+      'new.invalid': 'Lettres, chiffres, point, tiret bas et tiret admis ; l’extension .md est ajoutée automatiquement si elle manque.',
+      'editor.hint': 'Sélectionnez un fichier de mémoire à gauche, ou créez-en un nouveau.',
+      'editor.placeholder': 'Rédigez le contenu de la mémoire en Markdown…',
+      'editor.dirty': 'Modifications non enregistrées',
+      'editor.readonlyMissing': 'Ce fichier n’existe plus sur le disque.',
+      'notice.saved': 'Enregistré.',
+      'notice.created': 'Créé.',
+      'notice.deleted': 'Supprimé.',
+      'error.generic': 'L’opération a échoué.',
+    }
+
+    const de = {
+      'panel.title': 'Arbeitsbereichs-Speicher',
+      'panel.subtitle': 'Speicherdateien pro Arbeitsbereich, standardmäßig im DSH-Datenverzeichnis gespeichert — außerhalb des Projektordners, sodass Serverkonfigurationen und andere lokale sensible Notizen nie versehentlich committet werden. Sie werden in jede Session des Arbeitsbereichs injiziert.',
+      'workspace.label': 'Speicherbereich',
+      'workspace.none': 'Es ist noch kein Arbeitsbereich registriert.',
+      'workspace.global': '🌐 Global — alle Arbeitsbereiche',
+      'action.refresh': 'Aktualisieren',
+      'action.new': 'Neue Datei',
+      'action.save': 'Speichern',
+      'action.delete': 'Löschen',
+      'action.confirmDelete': 'Löschung bestätigen',
+      'action.cancel': 'Abbrechen',
+      'action.create': 'Erstellen',
+      'list.loading': 'Wird geladen…',
+      'list.empty': 'Noch keine Speicherdateien',
+      'list.emptyHint': 'Erstellen Sie eine .md-Datei, um Notizen, Konventionen und Entscheidungen für diesen Arbeitsbereich festzuhalten.',
+      'list.error': 'Speicherdateien konnten nicht geladen werden.',
+      'new.nameLabel': 'Dateiname',
+      'new.placeholder': 'z. B. architecture.md',
+      'new.invalid': 'Buchstaben, Ziffern, Punkt, Unterstrich und Bindestrich sind erlaubt; die Erweiterung .md wird bei Bedarf automatisch ergänzt.',
+      'editor.hint': 'Wählen Sie links eine Speicherdatei aus oder erstellen Sie eine neue.',
+      'editor.placeholder': 'Speicherinhalt in Markdown schreiben…',
+      'editor.dirty': 'Ungespeicherte Änderungen',
+      'editor.readonlyMissing': 'Diese Datei existiert nicht mehr auf dem Datenträger.',
+      'notice.saved': 'Gespeichert.',
+      'notice.created': 'Erstellt.',
+      'notice.deleted': 'Gelöscht.',
+      'error.generic': 'Vorgang fehlgeschlagen.',
+    }
+
+    const ru = {
+      'panel.title': 'Память рабочей области',
+      'panel.subtitle': 'Файлы памяти для каждой рабочей области по умолчанию хранятся в каталоге данных DSH — вне папки проекта, поэтому конфигурации серверов и другие локальные заметки никогда не попадут в коммит по ошибке. Они инъецируются в каждую сессию рабочей области.',
+      'workspace.label': 'Область памяти',
+      'workspace.none': 'Пока не зарегистрировано ни одной рабочей области.',
+      'workspace.global': '🌐 Глобально — все рабочие области',
+      'action.refresh': 'Обновить',
+      'action.new': 'Новый файл',
+      'action.save': 'Сохранить',
+      'action.delete': 'Удалить',
+      'action.confirmDelete': 'Подтвердить удаление',
+      'action.cancel': 'Отмена',
+      'action.create': 'Создать',
+      'list.loading': 'Загрузка…',
+      'list.empty': 'Файлов памяти пока нет',
+      'list.emptyHint': 'Создайте .md-файл, чтобы хранить заметки, соглашения и решения для этой рабочей области.',
+      'list.error': 'Не удалось загрузить файлы памяти.',
+      'new.nameLabel': 'Имя файла',
+      'new.placeholder': 'например, architecture.md',
+      'new.invalid': 'Допускаются буквы, цифры, точка, подчёркивание и дефис; расширение .md добавляется автоматически, если оно отсутствует.',
+      'editor.hint': 'Выберите файл памяти слева или создайте новый.',
+      'editor.placeholder': 'Запишите содержимое памяти в Markdown…',
+      'editor.dirty': 'Есть несохранённые изменения',
+      'editor.readonlyMissing': 'Этот файл больше не существует на диске.',
+      'notice.saved': 'Сохранено.',
+      'notice.created': 'Создано.',
+      'notice.deleted': 'Удалено.',
+      'error.generic': 'Операция не удалась.',
+    }
+
+    const pt = {
+      'panel.title': 'Memória do espaço de trabalho',
+      'panel.subtitle': 'Arquivos de memória por espaço de trabalho, salvos por padrão no diretório de dados do DSH — fora da pasta do projeto, para que configurações de servidor e outras notas locais sensíveis nunca sejam commitadas por engano. São injetados em cada sessão do espaço de trabalho.',
+      'workspace.label': 'Escopo da memória',
+      'workspace.none': 'Nenhum espaço de trabalho registrado ainda.',
+      'workspace.global': '🌐 Global — todos os espaços de trabalho',
+      'action.refresh': 'Atualizar',
+      'action.new': 'Novo arquivo',
+      'action.save': 'Salvar',
+      'action.delete': 'Excluir',
+      'action.confirmDelete': 'Confirmar exclusão',
+      'action.cancel': 'Cancelar',
+      'action.create': 'Criar',
+      'list.loading': 'Carregando…',
+      'list.empty': 'Ainda não há arquivos de memória',
+      'list.emptyHint': 'Crie um arquivo .md para guardar anotações, convenções e decisões deste espaço de trabalho.',
+      'list.error': 'Falha ao carregar os arquivos de memória.',
+      'new.nameLabel': 'Nome do arquivo',
+      'new.placeholder': 'ex.: architecture.md',
+      'new.invalid': 'Use letras, dígitos, ponto, sublinhado ou hífen; a extensão .md é adicionada automaticamente quando ausente.',
+      'editor.hint': 'Selecione um arquivo de memória à esquerda ou crie um novo.',
+      'editor.placeholder': 'Escreva o conteúdo da memória em Markdown…',
+      'editor.dirty': 'Alterações não salvas',
+      'editor.readonlyMissing': 'Este arquivo não existe mais no disco.',
+      'notice.saved': 'Salvo.',
+      'notice.created': 'Criado.',
+      'notice.deleted': 'Excluído.',
+      'error.generic': 'A operação falhou.',
+    }
+
+    /** All eight DSH languages, registered with the host locale runtime. */
+    const DICT = { zh, en, ja, es, fr, de, ru, pt }
+
+    const fallback = (key) => en[key] || zh[key] || key
 
     /**
      * Call one Host-half route and unwrap its envelope.
@@ -233,10 +416,28 @@ window.__ModuleLoader__.load({
      * @param {{ t?: (key: string) => string }} props - framework props; `t` is bound to this plugin's namespace.
      */
     function WorkspaceMemoryPanel(props) {
-      const t = typeof props.t === 'function' ? props.t : fallback
       const injected = props.__ctx
       const workspacesStore = injected.workspaces && injected.workspaces.list
       const sessionsStore = injected.sessions && injected.sessions.list
+      const localeRuntime = injected.locale
+
+      // Re-render whenever the active UI language changes so every label
+      // re-resolves against the new locale (regional tags like zh-CN are
+      // normalized by the host runtime's own fallback chain: active → en).
+      const localeRevision = useSyncExternalStore(
+        localeRuntime && typeof localeRuntime.subscribe === 'function'
+          ? localeRuntime.subscribe.bind(localeRuntime)
+          : () => () => {},
+        localeRuntime && typeof localeRuntime.getSnapshot === 'function'
+          ? () => localeRuntime.getSnapshot()
+          : () => null,
+      )
+      const t = (key) => {
+        void localeRevision
+        if (typeof props.t === 'function') return props.t(key)
+        if (localeRuntime && typeof localeRuntime.translate === 'function') return localeRuntime.translate(NS, key)
+        return fallback(key)
+      }
 
       const workspaceSnapshot = useSyncExternalStore(
         workspacesStore ? workspacesStore.subscribe.bind(workspacesStore) : () => () => {},
@@ -546,7 +747,7 @@ window.__ModuleLoader__.load({
     return {
       inject: ['slots', 'locale', 'workspaces', 'sessions'],
       apply(ctx) {
-        ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'workspace-memory: dictionaries')
+        ctx.effect(() => ctx.locale.register(NS, DICT), 'workspace-memory: dictionaries')
         const t = ctx.locale.bind(NS)
         // The slot system injects registered components rather than passing the
         // plugin context, so the panel reads its stores through one prop.

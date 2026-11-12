@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Arbeitsbereichs-Speicher",
+    "description": "Fügt ein Seitenleisten-Panel hinzu, das die Speicherdateien jedes Arbeitsbereichs auflistet und verwaltet. Die Dateien werden standardmäßig im DSH-Datenverzeichnis gespeichert und ergänzen Dateien wie AGENTS.md."
+  }
+}

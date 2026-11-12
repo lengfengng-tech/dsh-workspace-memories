@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Mémoire de l’espace de travail",
+    "description": "Ajoute un panneau latéral qui liste et gère les fichiers de mémoire attachés à chaque espace de travail, stockés par défaut dans le répertoire de données de DSH en complément de fichiers comme AGENTS.md."
+  }
+}
